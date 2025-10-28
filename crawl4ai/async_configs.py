@@ -1167,6 +1167,7 @@ class CrawlerRunConfig():
         user_agent_generator_config: dict = {},
         # Deep Crawl Parameters
         deep_crawl_strategy: Optional[DeepCrawlStrategy] = None,
+        max_depth = None,
         # Link Extraction Parameters
         link_preview_config: Union[LinkPreviewConfig, Dict[str, Any]] = None,
         # Virtual Scroll Parameters
@@ -1316,6 +1317,7 @@ class CrawlerRunConfig():
 
         # Deep Crawl Parameters
         self.deep_crawl_strategy = deep_crawl_strategy
+        self.max_depth = max_depth
         
         # Link Extraction Parameters
         if link_preview_config is None:
@@ -1564,6 +1566,7 @@ class CrawlerRunConfig():
             user_agent_generator_config=kwargs.get("user_agent_generator_config", {}),
             # Deep Crawl Parameters
             deep_crawl_strategy=kwargs.get("deep_crawl_strategy"),
+            max_depth=kwargs.get("max_depth"),
             # Link Extraction Parameters
             link_preview_config=kwargs.get("link_preview_config"),
             url=kwargs.get("url"),

@@ -9,8 +9,31 @@ import asyncio
 from urllib.parse import urldefrag
 from crawl4ai import (
     AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode,
-    MemoryAdaptiveDispatcher
+    MemoryAdaptiveDispatcher, BFSDeepCrawlStrategy
 )
+
+async def crawl_recursive(url, max_depth=3, max_concurrent=10):
+    browser_config = BrowserConfig(headless=True, verbose=False)
+    run_config = CrawlerRunConfig(
+        deep_crawl_strategy=BFSDeepCrawlStrategy(max_depth=max_depth, include_external=False),
+        cache_mode=CacheMode.BYPASS,
+        stream=False,
+        excluded_tags=["nav", "footer"],
+        exclude_external_links=True
+    )
+    dispatcher = MemoryAdaptiveDispatcher(
+        memory_threshold_percent=70.0,      # Don't exceed 70% memory usage
+        check_interval=1.0,                 # Check memory every second
+        max_session_permit=max_concurrent   # Max parallel browser sessions
+    )
+
+
+    async with AsyncWebCrawler(config=browser_config) as crawler:
+        results = await crawler.arun(url, config=run_config, dispatcher=dispatcher)
+
+        print(f"Crawled {len(results)} pages in total")
+
+    return results
 
 async def crawl_recursive_batch(start_urls, max_depth=3, max_concurrent=10):
     browser_config = BrowserConfig(headless=True, verbose=False)
@@ -39,13 +62,13 @@ async def crawl_recursive_batch(start_urls, max_depth=3, max_concurrent=10):
 
         for depth in range(max_depth):
             print(f"\n=== Crawling Depth {depth+1} ===")
-            # Only distillery URLs we haven't seen yet (ignoring fragments)
+            # Only crawl URLs we haven't seen yet (ignoring fragments)
             urls_to_crawl = [normalize_url(url) for url in current_urls if normalize_url(url) not in visited]
 
             if not urls_to_crawl:
                 break
 
-            # Batch-distillery all URLs at this depth in parallel
+            # Batch-crawl all URLs at this depth in parallel
             results = await crawler.arun_many(
                 urls=urls_to_crawl,
                 config=run_config,
@@ -75,4 +98,4 @@ async def crawl_recursive_batch(start_urls, max_depth=3, max_concurrent=10):
     return output
 
 if __name__ == "__main__":
-    asyncio.run(crawl_recursive_batch(["https://wobcom.de"], max_depth=3, max_concurrent=10))
+    asyncio.run(crawl_recursive_batch(["https://solvatio.ai"], max_depth=3, max_concurrent=10))

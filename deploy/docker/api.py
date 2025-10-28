@@ -22,8 +22,8 @@ from crawl4ai import (
     CacheMode,
     BrowserConfig,
     MemoryAdaptiveDispatcher,
-    RateLimiter, 
-    LLMConfig
+    RateLimiter,
+    LLMConfig, BFSDeepCrawlStrategy
 )
 from crawl4ai.utils import perform_completion_with_backoff
 from crawl4ai.content_filter_strategy import (
@@ -514,6 +514,9 @@ async def handle_crawl_request(
         urls = [('https://' + url) if not url.startswith(('http://', 'https://')) and not url.startswith(("raw:", "raw://")) else url for url in urls]
         browser_config = BrowserConfig.load(browser_config)
         crawler_config = CrawlerRunConfig.load(crawler_config)
+
+        if crawler_config.max_depth and crawler_config.max_depth > 0:
+            crawler_config.deep_crawl_strategy = BFSDeepCrawlStrategy(max_depth=crawler_config.max_depth, include_external=False)
 
         dispatcher = MemoryAdaptiveDispatcher(
             memory_threshold_percent=config["crawler"]["memory_threshold_percent"],

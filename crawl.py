@@ -2,20 +2,20 @@ import asyncio
 from pathlib import Path
 
 from distillery.parallel import get_docs_urls, crawl_parallel
-from distillery.recursive import crawl_recursive_batch
+from distillery.recursive import crawl_recursive_batch, crawl_recursive
 
 
 async def crawl(url, depth):
     urls = []
-    if url.endswith(".xml"):
-        urls = get_docs_urls(url)
+    #if url.endswith(".xml"):
+    #    urls = get_docs_urls(url)
     if urls:
         print(f"Found {len(urls)} URLs to crawl")
         output = await crawl_parallel(urls, max_concurrent=10)
     else:
         print("No sitemap URLs found to crawl")
         print(f"Crawling recursively with depth {depth}")
-        output = await crawl_recursive_batch([url], max_depth=depth, max_concurrent=10)
+        output = await crawl_recursive(url, max_depth=depth, max_concurrent=10)
 
     filename = url.replace('https://', '').replace('.', '_').replace('/', '_')
 
