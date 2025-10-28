@@ -32,7 +32,9 @@ async def crawl_parallel(urls: List[str], max_concurrent: int = 10):
         extra_args=["--disable-gpu", "--disable-dev-shm-usage", "--no-sandbox"],
     )
     # Set up distillery config and dispatcher for batch crawling
-    crawl_config = CrawlerRunConfig(cache_mode=CacheMode.BYPASS, stream=False)
+    crawl_config = CrawlerRunConfig(cache_mode=CacheMode.BYPASS, stream=False,
+                                    excluded_tags=["nav", "footer"],
+                                    exclude_external_links=True)
     dispatcher = MemoryAdaptiveDispatcher(
         memory_threshold_percent=70.0,  # Don't exceed 70% memory usage
         check_interval=1.0,             # Check memory every second

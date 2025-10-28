@@ -16,7 +16,9 @@ async def crawl_recursive_batch(start_urls, max_depth=3, max_concurrent=10):
     browser_config = BrowserConfig(headless=True, verbose=False)
     run_config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
-        stream=False
+        stream=False,
+        excluded_tags=["nav", "footer"],
+        exclude_external_links=True
     )
     dispatcher = MemoryAdaptiveDispatcher(
         memory_threshold_percent=70.0,      # Don't exceed 70% memory usage
