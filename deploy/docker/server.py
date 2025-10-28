@@ -244,6 +244,8 @@ async def get_markdown(
         body.url, body.f, body.q, body.c, config, body.provider,
         body.temperature, body.base_url
     )
+    with open(f"{STATIC_DIR}/markdown.md", "w") as f:
+        f.write(markdown)
     return JSONResponse({
         "url": body.url,
         "filter": body.f,
@@ -576,6 +578,9 @@ async def crawl(
     # check if all of the results are not successful
     if all(not result["success"] for result in results["results"]):
         raise HTTPException(500, f"Crawl request failed: {results['results'][0]['error_message']}")
+    file_content = "\n---\n\n".join(f"URL: {result["url"]}\n\nContent:\n\n{result["markdown"]["raw_markdown"]}" for result in results["results"])
+    with open(f"{STATIC_DIR}/markdown.md", "w") as f:
+        f.write(file_content)
     return JSONResponse(results)
 
 

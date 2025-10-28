@@ -302,7 +302,8 @@
             <div class="border-b border-border flex">
                 <button data-tab="response" class="tab-btn active px-4 py-2 border-r border-border">Response</button>
                 <button data-tab="python" class="tab-btn px-4 py-2 border-r border-border">Python</button>
-                <button data-tab="curl" class="tab-btn px-4 py-2">cURL</button>
+                <button data-tab="curl" class="tab-btn px-4 py-2 border-r border-border">cURL</button>
+                <a href="markdown.md" download="distilled-result.md" class="tab-btn active px-4 py-2">Download</a>
             </div>
             <div class="flex-1 overflow-auto relative">
                 <!-- Response Tab -->
@@ -447,8 +448,10 @@
         // ================ ADVANCED CONFIG EDITOR ================
         const cm = CodeMirror(document.getElementById('adv-editor'), {
             value: `CrawlerRunConfig(
-    stream=True,
+    stream=False,
     cache_mode=CacheMode.BYPASS,
+    excluded_tags=["nav", "footer"],
+    exclude_external_links=True
 )`,
             mode: 'python',
             lineNumbers: true,
