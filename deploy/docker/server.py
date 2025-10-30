@@ -8,7 +8,7 @@ Crawl4AI FastAPI entry‑point
 
 # ── stdlib & 3rd‑party imports ───────────────────────────────
 from crawler_pool import get_crawler, close_all, janitor
-from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode, LXMLWebScrapingStrategy
 from auth import create_access_token, get_token_dependency, TokenRequest
 from pydantic import BaseModel
 from typing import Optional, List, Dict
@@ -578,7 +578,7 @@ async def crawl(
     # check if all of the results are not successful
     if all(not result["success"] for result in results["results"]):
         raise HTTPException(500, f"Crawl request failed: {results['results'][0]['error_message']}")
-    file_content = "\n---\n\n".join(f"URL: {result["url"]}\n\nContent:\n\n{result["markdown"]["raw_markdown"]}" for result in results["results"])
+    file_content = "\n---\n\n".join(f"URL: {result["url"]}\n\nContent:\n\n{result["markdown"]["raw_markdown"] if "markdown" in result else ""}" for result in results["results"])
     with open(f"{STATIC_DIR}/markdown.md", "w") as f:
         f.write(file_content)
     return JSONResponse(results)
