@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+from dataclasses import asdict
 from typing import List, Tuple, Dict
 from functools import partial
 from uuid import uuid4
@@ -10,6 +11,10 @@ from base64 import b64encode
 import logging
 from typing import Optional, AsyncGenerator
 from urllib.parse import unquote
+
+from crawl4ai.models import CrawlResultContainer
+
+from crawl4ai.processors.pdf import PDFContentScrapingStrategy, PDFCrawlerStrategy
 from fastapi import HTTPException, Request, status
 from fastapi.background import BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -512,11 +517,19 @@ async def handle_crawl_request(
     
     try:
         urls = [('https://' + url) if not url.startswith(('http://', 'https://')) and not url.startswith(("raw:", "raw://")) else url for url in urls]
+
+        pdf_scraping = all(url.endswith('.pdf') for url in urls)
+
         browser_config = BrowserConfig.load(browser_config)
         crawler_config = CrawlerRunConfig.load(crawler_config)
 
         if crawler_config.max_depth and crawler_config.max_depth > 0:
             crawler_config.deep_crawl_strategy = BFSDeepCrawlStrategy(max_depth=crawler_config.max_depth, include_external=False)
+
+        if pdf_scraping:
+            logging.info("All URLs end on '.pdf'. Using pdf content scraping strategy.")
+            pdf_scraping_strategy = PDFContentScrapingStrategy()
+            crawler_config.scraping_strategy = pdf_scraping_strategy
 
         dispatcher = MemoryAdaptiveDispatcher(
             memory_threshold_percent=config["crawler"]["memory_threshold_percent"],
@@ -526,6 +539,9 @@ async def handle_crawl_request(
         )
         
         from crawler_pool import get_crawler
+
+        pdf_crawler_strategy = PDFCrawlerStrategy()
+        pdf_crawler = await get_crawler(browser_config, crawler_strategy=pdf_crawler_strategy)
         crawler = await get_crawler(browser_config)
 
         # crawler: AsyncWebCrawler = AsyncWebCrawler(config=browser_config)
@@ -537,7 +553,7 @@ async def handle_crawl_request(
             from hook_manager import attach_user_hooks_to_crawler, UserHookManager
             hook_manager = UserHookManager(timeout=hooks_config.get('timeout', 30))
             hooks_status, hook_manager = await attach_user_hooks_to_crawler(
-                crawler,
+                pdf_crawler if pdf_scraping else crawler,
                 hooks_config.get('code', {}),
                 timeout=hooks_config.get('timeout', 30),
                 hook_manager=hook_manager
@@ -554,15 +570,15 @@ async def handle_crawl_request(
                     setattr(crawler_config, key, value)
 
         results = []
-        func = getattr(crawler, "arun" if len(urls) == 1 else "arun_many")
+        func = getattr(pdf_crawler if pdf_scraping else crawler, "arun" if len(urls) == 1 else "arun_many")
         partial_func = partial(func, 
                                 urls[0] if len(urls) == 1 else urls, 
                                 config=crawler_config, 
                                 dispatcher=dispatcher)
         results = await partial_func()
-        
+
         # Ensure results is always a list
-        if not isinstance(results, list):
+        if not isinstance(results, list) and not isinstance(results, CrawlResultContainer):
             results = [results]
 
         # await crawler.close()
@@ -592,7 +608,12 @@ async def handle_crawl_request(
                         "success": False,
                         "error_message": f"Unexpected result type: {type(result).__name__}"
                     }
-                
+
+                if "metadata" in result_dict:
+                    for k, v in result_dict["metadata"].items():
+                        if isinstance(v, datetime):
+                            result_dict["metadata"][k] = v.isoformat()
+
                 # if fit_html is not a string, set it to None to avoid serialization errors
                 if "fit_html" in result_dict and not (result_dict["fit_html"] is None or isinstance(result_dict["fit_html"], str)):
                     result_dict["fit_html"] = None
@@ -646,7 +667,7 @@ async def handle_crawl_request(
 
     except Exception as e:
         logger.error(f"Crawl error: {str(e)}", exc_info=True)
-        if 'crawler' in locals() and crawler.ready: # Check if crawler was initialized and started
+        if 'crawler' in locals() and (pdf_crawler.ready if pdf_scraping else crawler.ready): # Check if crawler was initialized and started
             #  try:
             #      await crawler.close()
             #  except Exception as close_e:

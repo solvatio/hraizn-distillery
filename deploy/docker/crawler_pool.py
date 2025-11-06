@@ -2,6 +2,9 @@
 import asyncio, json, hashlib, time, psutil
 from contextlib import suppress
 from typing import Dict
+
+from crawl4ai.async_crawler_strategy import AsyncCrawlerStrategy
+
 from crawl4ai import AsyncWebCrawler, BrowserConfig
 from typing import Dict
 from utils import load_config 
@@ -19,16 +22,16 @@ def _sig(cfg: BrowserConfig) -> str:
     payload = json.dumps(cfg.to_dict(), sort_keys=True, separators=(",",":"))
     return hashlib.sha1(payload.encode()).hexdigest()
 
-async def get_crawler(cfg: BrowserConfig) -> AsyncWebCrawler:
+async def get_crawler(cfg: BrowserConfig, crawler_strategy: AsyncCrawlerStrategy = None) -> AsyncWebCrawler:
     try:
         sig = _sig(cfg)
         async with LOCK:
             if sig in POOL:
-                LAST_USED[sig] = time.time();  
+                LAST_USED[sig] = time.time()
                 return POOL[sig]
             if psutil.virtual_memory().percent >= MEM_LIMIT:
                 raise MemoryError("RAM pressure – new browser denied")
-            crawler = AsyncWebCrawler(config=cfg, thread_safe=False)
+            crawler = AsyncWebCrawler(config=cfg, thread_safe=False, crawler_strategy=crawler_strategy)
             await crawler.start()
             POOL[sig] = crawler; LAST_USED[sig] = time.time()
             return crawler
