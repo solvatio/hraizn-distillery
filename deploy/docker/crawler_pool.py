@@ -18,13 +18,16 @@ LOCK = asyncio.Lock()
 MEM_LIMIT  = CONFIG.get("crawler", {}).get("memory_threshold_percent", 95.0)   # % RAM – refuse new browsers above this
 IDLE_TTL  = CONFIG.get("crawler", {}).get("pool", {}).get("idle_ttl_sec", 1800)   # close if unused for 30 min
 
-def _sig(cfg: BrowserConfig) -> str:
-    payload = json.dumps(cfg.to_dict(), sort_keys=True, separators=(",",":"))
+def _sig(cfg: BrowserConfig, crawler_strategy: AsyncCrawlerStrategy = None) -> str:
+    cfg_dict = cfg.to_dict()
+    if crawler_strategy:
+        cfg_dict.update({"crawler_strategy": crawler_strategy.__class__.__name__})
+    payload = json.dumps(cfg_dict, sort_keys=True, separators=(",",":"))
     return hashlib.sha1(payload.encode()).hexdigest()
 
 async def get_crawler(cfg: BrowserConfig, crawler_strategy: AsyncCrawlerStrategy = None) -> AsyncWebCrawler:
     try:
-        sig = _sig(cfg)
+        sig = _sig(cfg, crawler_strategy)
         async with LOCK:
             if sig in POOL:
                 LAST_USED[sig] = time.time()

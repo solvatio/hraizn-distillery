@@ -520,6 +520,14 @@ async def handle_crawl_request(
 
         pdf_scraping = all(url.endswith('.pdf') for url in urls)
 
+        if pdf_scraping:
+            browser_config = {
+                "headless": True
+            }
+            crawler_config = {
+                "params": {"cache_mode": "bypass"}
+            }
+
         browser_config = BrowserConfig.load(browser_config)
         crawler_config = CrawlerRunConfig.load(crawler_config)
 
@@ -540,9 +548,11 @@ async def handle_crawl_request(
         
         from crawler_pool import get_crawler
 
-        pdf_crawler_strategy = PDFCrawlerStrategy()
-        pdf_crawler = await get_crawler(browser_config, crawler_strategy=pdf_crawler_strategy)
-        crawler = await get_crawler(browser_config)
+        if pdf_scraping:
+            pdf_crawler_strategy = PDFCrawlerStrategy()
+            crawler = await get_crawler(browser_config, crawler_strategy=pdf_crawler_strategy)
+        else:
+            crawler = await get_crawler(browser_config)
 
         # crawler: AsyncWebCrawler = AsyncWebCrawler(config=browser_config)
         # await crawler.start()
@@ -553,7 +563,7 @@ async def handle_crawl_request(
             from hook_manager import attach_user_hooks_to_crawler, UserHookManager
             hook_manager = UserHookManager(timeout=hooks_config.get('timeout', 30))
             hooks_status, hook_manager = await attach_user_hooks_to_crawler(
-                pdf_crawler if pdf_scraping else crawler,
+                crawler,
                 hooks_config.get('code', {}),
                 timeout=hooks_config.get('timeout', 30),
                 hook_manager=hook_manager
@@ -570,7 +580,7 @@ async def handle_crawl_request(
                     setattr(crawler_config, key, value)
 
         results = []
-        func = getattr(pdf_crawler if pdf_scraping else crawler, "arun" if len(urls) == 1 else "arun_many")
+        func = getattr(crawler, "arun" if len(urls) == 1 else "arun_many")
         partial_func = partial(func, 
                                 urls[0] if len(urls) == 1 else urls, 
                                 config=crawler_config, 
@@ -667,7 +677,7 @@ async def handle_crawl_request(
 
     except Exception as e:
         logger.error(f"Crawl error: {str(e)}", exc_info=True)
-        if 'crawler' in locals() and (pdf_crawler.ready if pdf_scraping else crawler.ready): # Check if crawler was initialized and started
+        if 'crawler' in locals() and crawler.ready: # Check if crawler was initialized and started
             #  try:
             #      await crawler.close()
             #  except Exception as close_e:
