@@ -52,6 +52,12 @@ from .utils import (
 )
 
 
+def strip_urls(markdown: str):
+    s = "[](https://id.atlassian.com/framework/resources/forms/ads.aspx)\n"
+    result = re.sub(r'https?://\S+', '', s)
+    return result
+
+
 class AsyncWebCrawler:
     """
     Asynchronous web crawler with flexible caching capabilities.
@@ -384,7 +390,9 @@ class AsyncWebCrawler:
 
                     _blocked, _block_reason = is_blocked(crawl_result.status_code, crawl_result.html)
 
-                    crawl_result.success = bool(html) and not _blocked
+                    _too_short = crawl_result.markdown and len(strip_urls(crawl_result.markdown)) < 25
+
+                    crawl_result.success = bool(html) and not _blocked and not _too_short
                     crawl_result.session_id = getattr(
                         config, "session_id", None)
 
