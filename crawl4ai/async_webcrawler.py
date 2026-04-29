@@ -1,3 +1,5 @@
+from crawl4ai.antibot_detector import is_blocked
+
 from .__version__ import __version__ as crawl4ai_version
 import os
 import sys
@@ -380,7 +382,9 @@ class AsyncWebCrawler:
                     crawl_result.network_requests = async_response.network_requests
                     crawl_result.console_messages = async_response.console_messages
 
-                    crawl_result.success = bool(html)
+                    _blocked, _block_reason = is_blocked(crawl_result.status_code, crawl_result.html)
+
+                    crawl_result.success = bool(html) and not _blocked
                     crawl_result.session_id = getattr(
                         config, "session_id", None)
 
