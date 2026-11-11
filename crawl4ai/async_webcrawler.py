@@ -1,4 +1,4 @@
-from crawl4ai.antibot_detector import is_blocked
+from crawl4ai.antibot_detector import crawl_failure_reason
 
 from .__version__ import __version__ as crawl4ai_version
 import os
@@ -50,12 +50,6 @@ from .utils import (
     RobotsParser,
     preprocess_html_for_schema,
 )
-
-
-def strip_urls(markdown: str):
-    s = "[](https://id.atlassian.com/framework/resources/forms/ads.aspx)\n"
-    result = re.sub(r'https?://\S+', '', s)
-    return result
 
 
 class AsyncWebCrawler:
@@ -388,11 +382,10 @@ class AsyncWebCrawler:
                     crawl_result.network_requests = async_response.network_requests
                     crawl_result.console_messages = async_response.console_messages
 
-                    _blocked, _block_reason = is_blocked(crawl_result.status_code, crawl_result.html)
-
-                    _too_short = crawl_result.markdown and len(strip_urls(crawl_result.markdown)) < 25
-
-                    crawl_result.success = bool(html) and not _blocked and not _too_short
+                    crawl_result.error_message = crawl_failure_reason(
+                        crawl_result.status_code, crawl_result.html, crawl_result.markdown
+                    )
+                    crawl_result.success = not bool(crawl_result.error_message)
                     crawl_result.session_id = getattr(
                         config, "session_id", None)
 
@@ -410,13 +403,16 @@ class AsyncWebCrawler:
                     return CrawlResultContainer(crawl_result)
 
                 else:
+                    cached_result.error_message = crawl_failure_reason(
+                        cached_result.status_code, html, cached_result.markdown
+                    )
+                    cached_result.success = not bool(cached_result.error_message)
                     self.logger.url_status(
                         url=cache_context.display_url,
-                        success=True,
+                        success=cached_result.success,
                         timing=time.perf_counter() - start_time,
                         tag="COMPLETE"
                     )
-                    cached_result.success = bool(html)
                     cached_result.session_id = getattr(
                         config, "session_id", None)
                     cached_result.redirected_url = cached_result.redirected_url or url

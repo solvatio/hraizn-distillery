@@ -18,6 +18,21 @@ Detection is layered:
 import re
 from typing import Optional, Tuple
 
+
+def crawl_failure_reason(status_code: Optional[int], html: str, markdown=None) -> str:
+    """Return a useful failure reason for both fresh and cached crawl content."""
+    if not html:
+        return "Crawl returned no HTML content"
+    blocked, reason = is_blocked(status_code, html)
+    if blocked:
+        return f"Crawl blocked: {reason}"
+    if markdown:
+        # MarkdownGenerationResult and StringCompatibleMarkdown both expose text via str().
+        visible_text = re.sub(r'https?://\S+', '', str(markdown)).strip()
+        if len(visible_text) < 25:
+            return "Crawl returned insufficient text content"
+    return ""
+
 # ---------------------------------------------------------------------------
 # Tier 1: High-confidence structural markers (single signal sufficient)
 # These are unique to block pages and virtually never appear in real content.
